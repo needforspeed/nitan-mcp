@@ -40,8 +40,14 @@ export class HttpError extends Error {
 
 export class HttpClient {
   private base: URL;
-  // Mimics Microsoft Edge browser on Windows to avoid bot detection
-  private userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0";
+  // Keep UA / Sec-Ch-Ua in sync with curl_cffi impersonate above.
+  // Previously pinned to Chrome/142 (pr-13) to match chrome142, but that
+  // drifts as soon as Chrome updates (you're on 151.0.7922.174). The python
+  // side now uses impersonate="chrome" (dynamic latest), so we derive UA
+  // from a single constant here. Override by editing CHROME_VERSION or
+  // setting NITAN_CHROME_VERSION env at build/run time if needed.
+  private static readonly CHROME_VERSION = process.env.NITAN_CHROME_VERSION || "151";
+  private userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${HttpClient.CHROME_VERSION}.0.0.0 Safari/537.36 Edg/${HttpClient.CHROME_VERSION}.0.0.0`;
   private cache = new Map<string, { value: any; expiresAt: number }>();
   private cookies = new Map<string, string>(); // Store cookies across requests
   private lastUrl: string | null = null; // Track last URL for Referer header
@@ -89,6 +95,7 @@ export class HttpClient {
   }
 
   private headers(): Record<string, string> {
+    const v = HttpClient.CHROME_VERSION;
     const h: Record<string, string> = {
       "Accept": "application/json, text/javascript, */*; q=0.01",
       "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -97,7 +104,7 @@ export class HttpClient {
       "Dnt": "1",
       "Pragma": "no-cache",
       "Priority": "u=1, i",
-      "Sec-Ch-Ua": '"Microsoft Edge";v="142", "Not?A_Brand";v="8", "Chromium";v="142"',
+      "Sec-Ch-Ua": `"Microsoft Edge";v="${v}", "Not?A_Brand";v="8", "Chromium";v="${v}"`,
       "Sec-Ch-Ua-Mobile": "?0",
       "Sec-Ch-Ua-Platform": '"Windows"',
       "Sec-Fetch-Dest": "empty",
