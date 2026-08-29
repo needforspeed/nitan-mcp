@@ -6,6 +6,7 @@ import {
   BrowserFallbackRelayUnavailableError,
   type BrowserFallbackOptions,
 } from "./browser_fallback.js";
+import { NodriverCookieClient } from "./nodriver_cookie.js";
 
 export type AuthMode =
   | { type: "none" }
@@ -39,8 +40,14 @@ export class HttpError extends Error {
 
 export class HttpClient {
   private base: URL;
-  // Mimics Microsoft Edge browser on Windows to avoid bot detection
-  private userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0";
+  // Keep UA / Sec-Ch-Ua in sync with curl_cffi impersonate above.
+  // Previously pinned to Chrome/142 (pr-13) to match chrome142, but that
+  // drifts as soon as Chrome updates (you're on 151.0.7922.174). The python
+  // side now uses impersonate="chrome" (dynamic latest), so we derive UA
+  // from a single constant here. Override by editing CHROME_VERSION or
+  // setting NITAN_CHROME_VERSION env at build/run time if needed.
+  private static readonly CHROME_VERSION = process.env.NITAN_CHROME_VERSION || "151";
+  private userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${HttpClient.CHROME_VERSION}.0.0.0 Safari/537.36 Edg/${HttpClient.CHROME_VERSION}.0.0.0`;
   private cache = new Map<string, { value: any; expiresAt: number }>();
   private cookies = new Map<string, string>(); // Store cookies across requests
   private lastUrl: string | null = null; // Track last URL for Referer header
@@ -49,6 +56,7 @@ export class HttpClient {
   private bypassMethod: BypassMethod;
   private cloudscraperFailed = false; // Track if cloudscraper has failed
   private browserFallbackClient?: BrowserFallbackClient;
+  private nodriverClient: NodriverCookieClient;
 
   constructor(private opts: HttpClientOptions) {
     this.base = new URL(opts.baseUrl);
@@ -78,6 +86,8 @@ export class HttpClient {
       this.opts.logger.info("Using dual bypass strategy: cloudscraper with curl_cffi fallback");
     }
 
+    this.nodriverClient = new NodriverCookieClient(opts.logger, opts.pythonPath);
+
     if (opts.browserFallback?.enabled) {
       this.browserFallbackClient = new BrowserFallbackClient(this.opts.logger, opts.browserFallback);
       this.opts.logger.info("Browser fallback enabled");
@@ -85,6 +95,7 @@ export class HttpClient {
   }
 
   private headers(): Record<string, string> {
+    const v = HttpClient.CHROME_VERSION;
     const h: Record<string, string> = {
       "Accept": "application/json, text/javascript, */*; q=0.01",
       "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -93,7 +104,7 @@ export class HttpClient {
       "Dnt": "1",
       "Pragma": "no-cache",
       "Priority": "u=1, i",
-      "Sec-Ch-Ua": '"Microsoft Edge";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+      "Sec-Ch-Ua": `"Microsoft Edge";v="${v}", "Not?A_Brand";v="8", "Chromium";v="${v}"`,
       "Sec-Ch-Ua-Mobile": "?0",
       "Sec-Ch-Ua-Platform": '"Windows"',
       "Sec-Fetch-Dest": "empty",
@@ -105,7 +116,7 @@ export class HttpClient {
     
     // Add Referer header for subsequent requests
     if (this.lastUrl) {
-      h["Referer"] = "https://www.uscardforum.com/";
+      h["Referer"] = this.base.origin + "/";
     }
     
     // Add cookies if we have any
@@ -167,7 +178,7 @@ export class HttpClient {
     }
 
     this.opts.logger.debug(`HTTP ${method} ${url}`);
-    
+
     // Log request headers for debugging
     this.opts.logger.debug(`Request headers: ${JSON.stringify(headers, null, 2)}`);
     
@@ -229,6 +240,11 @@ export class HttpClient {
           const isChallenge = this.isCloudflareChallenge(res.status, text, responseHeaders);
           if (isChallenge && this.browserFallbackClient?.isEnabled()) {
             this.opts.logger.info(`Cloudflare challenge detected via native fetch (${res.status}), switching to browser fallback`);
+            return await this.tryBrowserFallback(method, url, headers, body);
+          }
+          // Treat any 403 as potential Cloudflare block when browser fallback is available
+          if (res.status === 403 && this.browserFallbackClient?.isEnabled()) {
+            this.opts.logger.info(`HTTP 403 from native fetch, attempting browser fallback for ${method} ${url}`);
             return await this.tryBrowserFallback(method, url, headers, body);
           }
           this.opts.logger.error(`HTTP ${res.status} ${res.statusText} for ${method} ${url}: ${text}`);
@@ -360,6 +376,50 @@ export class HttpClient {
     return typeof maybeJson === "string" ? response.body : maybeJson;
   }
 
+  /**
+   * Harvest CF cookies via nodriver (headless Chrome) and retry the request through curl_cffi.
+   * Only called on CF 403 from curl_cffi.
+   */
+  private async tryNodriverHarvestAndRetry(
+    method: string, url: string, headers: Record<string, string>, body?: unknown,
+    requestData?: any,
+  ): Promise<any | undefined> {
+    const harvest = await this.nodriverClient.harvestCookies(url);
+    if (!harvest?.success || !harvest.cookies || Object.keys(harvest.cookies).length === 0) return undefined;
+
+    // Inject harvested cookies
+    for (const [key, value] of Object.entries(harvest.cookies)) {
+      this.cookies.set(key, value);
+    }
+    this.opts.logger.info(`Injected ${Object.keys(harvest.cookies).length} cookies from nodriver, retrying via curl_cffi`);
+
+    // Retry with curl_cffi using the new cookies
+    if (!this.curlCffiClient) return undefined;
+
+    const cookiesObj: Record<string, string> = {};
+    this.cookies.forEach((v, k) => { cookiesObj[k] = v; });
+
+    const retryData = {
+      ...requestData,
+      cookies: cookiesObj,
+      headers: { ...headers, Cookie: Object.entries(cookiesObj).map(([k, v]) => `${k}=${v}`).join("; ") },
+    };
+
+    const result = await this.curlCffiClient.request(retryData);
+    if (!result.success || (result.status && result.status >= 400)) return undefined;
+
+    // Store any new cookies from the retry
+    if (result.cookies) {
+      Object.entries(result.cookies).forEach(([k, v]) => { this.cookies.set(k, v); });
+    }
+
+    const contentType = result.headers?.["content-type"] || result.headers?.["Content-Type"] || "";
+    if (contentType.includes("application/json")) {
+      return JSON.parse(result.body || "{}");
+    }
+    return result.body;
+  }
+
   private async requestViaBypass(method: string, url: string, headers: Record<string, string>, body?: unknown): Promise<any> {
     // Convert cookies Map to object
     const cookiesObj: Record<string, string> = {};
@@ -414,13 +474,21 @@ export class HttpClient {
         // Check for HTTP errors / Cloudflare challenge
         if (result.status && result.status >= 400) {
           const isChallenge = this.isCloudflareChallenge(result.status, result.body, result.headers);
-          if (isChallenge && this.browserFallbackClient?.isEnabled()) {
-            this.opts.logger.info(`Cloudflare challenge detected via cloudscraper (${result.status}), switching to browser fallback`);
-            return await this.tryBrowserFallback(method, url, headers, body);
+          if (isChallenge || result.status === 403) {
+            // Mark cloudscraper as failed so we fall through to curl_cffi (pr-14 fix)
+            // Don't jump straight to browser fallback here - curl_cffi with chrome142 + nodriver harvest
+            // (pr-13) will get a chance first, browser fallback is the last resort in the curl_cffi block.
+            this.cloudscraperFailed = true;
+            this.opts.logger.info(`Cloudflare challenge/403 via cloudscraper (${result.status}), falling through to curl_cffi`);
+            throw new Error(`Cloudscraper blocked by Cloudflare (${result.status})`);
           }
 
           const errorBody = safeJson(result.body || "");
           this.opts.logger.error(`HTTP ${result.status} for ${method} ${url}: ${result.body}`);
+          // On 403, let it fall through to try the next bypass method
+          if (result.status === 403) {
+            throw new Error(`HTTP 403 Forbidden for ${method} ${url}`);
+          }
           throw new HttpError(result.status, `HTTP ${result.status}`, errorBody);
         }
 
@@ -441,7 +509,7 @@ export class HttpClient {
           throw e;
         }
         if (e instanceof HttpError) {
-          throw e; // Don't fallback on HTTP errors (4xx, 5xx)
+          throw e; // Don't fallback on non-403 HTTP errors (4xx, 5xx)
         }
         
         lastError = e;
@@ -491,8 +559,21 @@ export class HttpClient {
         // Check for HTTP errors / Cloudflare challenge
         if (result.status && result.status >= 400) {
           const isChallenge = this.isCloudflareChallenge(result.status, result.body, result.headers);
+
+          // On CF 403, try nodriver cookie harvest then retry with curl_cffi
+          if (isChallenge && result.status === 403) {
+            const retried = await this.tryNodriverHarvestAndRetry(method, url, headers, body, requestData);
+            if (retried !== undefined) return retried;
+          }
+
           if (isChallenge && this.browserFallbackClient?.isEnabled()) {
             this.opts.logger.info(`Cloudflare challenge detected via curl_cffi (${result.status}), switching to browser fallback`);
+            return await this.tryBrowserFallback(method, url, headers, body);
+          }
+
+          // Treat any 403 as potential Cloudflare block when browser fallback is available
+          if (result.status === 403 && this.browserFallbackClient?.isEnabled()) {
+            this.opts.logger.info(`HTTP 403 from curl_cffi, attempting browser fallback for ${method} ${url}`);
             return await this.tryBrowserFallback(method, url, headers, body);
           }
 

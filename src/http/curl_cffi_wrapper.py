@@ -33,8 +33,14 @@ def get_session(base_url: str) -> requests.Session:
 
     # Create new session if URL changed or doesn't exist
     if _session_instance is None or _base_url != base_url:
-        # Use chrome110 impersonation for better Cloudflare compatibility on datacenter IPs
-        _session_instance = requests.Session(impersonate="chrome110")
+        # Use "chrome" (no version pin) so curl_cffi always picks its latest
+        # fingerprint DB entry. Pinned versions like chrome142/chrome151 go stale
+        # as soon as your local Chrome (you're on 151.0.7922.174) moves forward.
+        # Override via env if you need to force a specific version: CURL_CFFI_IMPERSONATE=chrome151
+        import os
+
+        impersonate = os.getenv("CURL_CFFI_IMPERSONATE", "chrome")
+        _session_instance = requests.Session(impersonate=impersonate)
         _base_url = base_url
 
         # Warm up session with base URL to establish Cloudflare cookies
