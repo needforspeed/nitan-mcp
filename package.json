@@ -1,7 +1,11 @@
 {
-  "name": "@nitansde/mcp",
-  "version": "2.1.1",
-  "description": "Nitan MCP CLI server for uscardforum.com (modified Discourse MCP with Cloudflare bypass)",
+  "name": "@needforspeed/nitan-mcp",
+  "version": "2.2.0",
+  "description": "Nitan MCP CLI server for uscardforum.com (fork of @nitansde/mcp with 3 upstream PRs merged + SDK v2)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/needforspeed/nitan-mcp.git"
+  },
   "private": false,
   "type": "module",
   "bin": {
@@ -14,7 +18,7 @@
     "skill:pack": "bash scripts/package-skill.sh",
     "copy:python": "node -e \"const fs=require('fs'),p=require('path');fs.mkdirSync(p.join('dist','http'),{recursive:true});for(const f of['cloudscraper_wrapper.py','curl_cffi_wrapper.py','nodriver_cf_cookie.py'])fs.copyFileSync(p.join('src','http',f),p.join('dist','http',f));fs.copyFileSync('requirements.txt',p.join('dist','requirements.txt'))\"",
     "postinstall": "node scripts/check-python-deps.mjs",
-    "prepublishOnly": "pnpm run build",
+    "prepublishOnly": "npm run build",
     "dev": "node --enable-source-maps dist/index.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
