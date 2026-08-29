@@ -26,6 +26,12 @@ Changelog
   `doctor` CLI.
 * stdio remains the default transport for `npx` / Claude Desktop usage.
 
+### [2.2.2](https://github.com/needforspeed/nitan-mcp/compare/v2.2.1...v2.2.2) (2026-08-29)
+
+#### Features
+
+* merge upstream `nitansde/nitan-mcp` `d5580cc` (45 commits): sync auth wizard, `/auth` OAuth, trust-level progress, excellent/funny topics, pagination fixes, and `remove chinese alias` — kept fork SDK v2, Node 26+, dynamic Chrome fingerprint, and nodriver harvester
+
 ### [0.1.9](https://github.com/discourse/discourse-mcp/compare/v0.1.8...v0.1.9) (2025-10-20)
 
 #### Features
