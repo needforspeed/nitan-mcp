@@ -1,7 +1,7 @@
 ---
 name: nitan
 description: Use the local Nitan MCP stdio server for uscardforum.com search, reading, monitoring, and auth setup guidance. Secure-by-default wrappers use npx --no-install with a preinstalled nitan-mcp binary; enable runtime npm install only with explicit opt-in.
-metadata: {"openclaw":{"homepage":"https://github.com/nitansde/nitan-mcp","requires":{"bins":["npx","nitan-mcp"],"anyBins":["python3","python","py"]},"install":[{"id":"node","kind":"node","package":"@nitansde/mcp","bins":["nitan-mcp"],"label":"Install Nitan MCP CLI (npm)"}]},"nitan":{"runnerDefault":"npx --no-install nitan-mcp","runnerOptIn":"npx -y @nitansde/mcp@<version> (requires NITAN_MCP_ALLOW_INSTALL=1)","env":{"required":[],"optional":["NITAN_MCP_PACKAGE","NITAN_MCP_ALLOW_INSTALL","NITAN_MCP_RESPONSE_TIMEOUT","NITAN_USERNAME","NITAN_PASSWORD","TIMEZONE"]}}}
+metadata: {"openclaw":{"homepage":"https://github.com/needforspeed/nitan-mcp","requires":{"bins":["npx","nitan-mcp"],"anyBins":["python3","python","py"]},"install":[{"id":"node","kind":"node","package":"@needforspeed/nitan-mcp","bins":["nitan-mcp"],"label":"Install Nitan MCP CLI (npm)"}]},"nitan":{"runnerDefault":"npx --no-install nitan-mcp","runnerOptIn":"npx -y @needforspeed/nitan-mcp@<version> (requires NITAN_MCP_ALLOW_INSTALL=1)","env":{"required":[],"optional":["NITAN_MCP_PACKAGE","NITAN_MCP_ALLOW_INSTALL","NITAN_MCP_RESPONSE_TIMEOUT","NITAN_USERNAME","NITAN_PASSWORD","TIMEZONE"]}}}
 ---
 
 # Nitan MCP skill
@@ -17,10 +17,10 @@ Use this skill as a thin bridge to the existing local MCP server. Do not reimple
 - This avoids automatic package download/execution during normal runs.
 - Optional install-on-demand mode is explicit:
   - set `NITAN_MCP_ALLOW_INSTALL=1`
-  - set `NITAN_MCP_PACKAGE=@nitansde/mcp@<pinned-version-or-tag>`
+  - set `NITAN_MCP_PACKAGE=@needforspeed/nitan-mcp@<pinned-version-or-tag>`
   - wrapper then uses `npx -y <package>`
 - Recommended hardening for frequent use:
-  - install once globally: `npm install -g @nitansde/mcp@latest`
+  - install once globally: `npm install -g @needforspeed/nitan-mcp@latest`
   - keep `NITAN_MCP_PACKAGE=nitan-mcp`
   - pin exact versions when enabling install mode
 - Communication model: MCP client <-> local server subprocess over stdin/stdout (JSON-RPC).
@@ -83,7 +83,7 @@ npx --no-install nitan-mcp complete-user-api-key \
 
 Important:
 - These commands assume `nitan-mcp` is already installed and available to `npx --no-install`.
-- If the user explicitly opts into install-on-demand mode, substitute a pinned package form such as `npx -y @nitansde/mcp@<pinned-version> ...`.
+- If the user explicitly opts into install-on-demand mode, substitute a pinned package form such as `npx -y @needforspeed/nitan-mcp@<pinned-version> ...`.
 - The key is always saved to the platform default profile location automatically.
 - The MCP server auto-loads that default profile path, so wrappers can use it without adding any profile-path flag.
 - If the user wants to clear the saved API key file later, use `npx --no-install nitan-mcp delete-user-api-key`.

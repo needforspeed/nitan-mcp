@@ -66,7 +66,7 @@ nvm use 26
 
 **Using npx (recommended):**
 ```bash
-npx -y @nitansde/mcp@latest
+npx -y @needforspeed/nitan-mcp@latest
 ```
 
 **What happens automatically:**
@@ -85,7 +85,7 @@ npx -y @nitansde/mcp@latest
 
 **If Python is installed in a virtual environment**
 ```bash
-npx -y @nitansde/mcp@latest --python_path /path/to/python_executable
+npx -y @needforspeed/nitan-mcp@latest --python_path /path/to/python_executable
 ```
 
 The server will start even if Python dependencies are missing, but Cloudflare bypass features won't work until you install them.
@@ -172,7 +172,7 @@ CLI flags (or profile JSON fields):
 Example:
 
 ```bash
-npx -y @nitansde/mcp@latest \
+npx -y @needforspeed/nitan-mcp@latest \
   --browser-fallback-enabled=true \
   --browser-fallback-provider=playwright \
   --interactive-login-enabled=true \
@@ -212,7 +212,7 @@ If you want authenticated reads without storing forum login credentials in your 
 Using the published package:
 
 ```bash
-npx -y @nitansde/mcp@latest generate-user-api-key \
+npx -y @needforspeed/nitan-mcp@latest generate-user-api-key \
   --site https://www.uscardforum.com \
   --auth-mode url
 ```
@@ -237,7 +237,7 @@ If your MCP host launches a short-lived process that cannot wait for the user to
 #### Step 1: start generation and persist pending state
 
 ```bash
-npx -y @nitansde/mcp@latest generate-user-api-key \
+npx -y @needforspeed/nitan-mcp@latest generate-user-api-key \
   --site https://www.uscardforum.com \
   --auth-mode browser \
   --state-file /absolute/path/nitan-user-api-key.json
@@ -254,7 +254,7 @@ This command:
 #### Step 2: complete later with the payload
 
 ```bash
-npx -y @nitansde/mcp@latest complete-user-api-key \
+npx -y @needforspeed/nitan-mcp@latest complete-user-api-key \
   --state-file /absolute/path/nitan-user-api-key.json \
   --payload "PASTE_THE_ENCRYPTED_PAYLOAD_HERE"
 ```
@@ -272,7 +272,7 @@ The CLI saves the API profile to a platform default location automatically:
 Browser-launch example:
 
 ```bash
-npx -y @nitansde/mcp@latest generate-user-api-key \
+npx -y @needforspeed/nitan-mcp@latest generate-user-api-key \
   --site https://www.uscardforum.com \
   --auth-mode browser \
   --state-file /absolute/path/nitan-user-api-key.json
@@ -317,7 +317,7 @@ The server loads the default profile location automatically. No extra path flag 
       "command": "npx",
       "args": [
         "-y",
-        "@nitansde/mcp@latest"
+        "@needforspeed/nitan-mcp@latest"
       ],
       "env": {
         "TIMEZONE": "America/New_York"
@@ -334,7 +334,7 @@ If an API key exists for the selected site, the server uses that first.
 To remove the current default saved API profile file entirely:
 
 ```bash
-npx -y @nitansde/mcp@latest delete-user-api-key
+npx -y @needforspeed/nitan-mcp@latest delete-user-api-key
 ```
 
 ### Login via environment variables (alternative to API key)
@@ -348,7 +348,7 @@ If you do not want to use an API key, you can provide login credentials instead.
       "command": "npx",
       "args": [
         "-y",
-        "@nitansde/mcp@latest"
+        "@needforspeed/nitan-mcp@latest"
       ],
       "env": {
         "NITAN_USERNAME": "YOUR_USERNAME",
@@ -385,7 +385,7 @@ In stateless mode, every MCP request is served by a fresh server instance — no
 
 ```bash
 # Start the HTTP server
-npx -y @nitansde/mcp@latest --transport http --port 3001
+npx -y @needforspeed/nitan-mcp@latest --transport http --port 3001
 
 # Or with a local build
 node dist/index.js --transport http --port 3001
