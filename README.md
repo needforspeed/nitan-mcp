@@ -9,7 +9,7 @@ This is a heavy modified version of [Discourse MCP](https://github.com/discourse
 ### Quick Installation
 
 **Prerequisites:**
-- **Node.js 20 or higher** (required — MCP SDK v2 requires Node 20+)
+- **Node.js 26 or higher** (required — MCP SDK v2 requires Node 20+, but Node 22 fails to decrypt Discourse User API payloads `RSA_PKCS1_PADDING is no longer supported`; tested on Node 26)
 - Python 3.7+ (required for Cloudflare bypass)
 - pip (used via local `.venv` Python)
 
@@ -52,14 +52,14 @@ node dist/index.js doctor
 
 **Check your Node.js version:**
 ```bash
-node --version  # Should be v20.0.0 or higher
+node --version  # Should be v26.0.0 or higher
 ```
 
 **If you need to upgrade Node.js:**
 ```bash
 # Using nvm (recommended)
-nvm install 20
-nvm use 20
+nvm install 26
+nvm use 26
 
 # Or download from https://nodejs.org/
 ```

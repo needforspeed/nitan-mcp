@@ -258,7 +258,15 @@ export function decryptPayload(encryptedPayload: string, privateKey: string): st
     );
     return decrypted.toString("utf8");
   } catch (error: any) {
-    throw new Error(`Failed to decrypt payload: ${error?.message || String(error)}`);
+    const msg = error?.message || String(error);
+    // Node 22+ disables RSA_PKCS1_PADDING for privateDecrypt (CVE-2023-46809)
+    // Node 26 still allows it, hence engines >=26. Give actionable hint.
+    if (msg.includes("RSA_PKCS1_PADDING")) {
+      throw new Error(
+        `Failed to decrypt payload: ${msg} (Node ${process.version} detected; use Node 26+ or run with --security-revert=CVE-2023-46809)`
+      );
+    }
+    throw new Error(`Failed to decrypt payload: ${msg}`);
   }
 }
 

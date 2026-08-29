@@ -44,7 +44,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=26"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "^2.0.0",
