@@ -1,4 +1,10 @@
 Changelog
+## [2.3.0](https://github.com/needforspeed/nitan-mcp/compare/v2.2.2...v2.3.0) (2026-10-18)
+
+
+### Features
+
+* support bun as run time ([781182b](https://github.com/needforspeed/nitan-mcp/commit/781182bc120dcfa5e5f796932b1076dd7ece24b3))
 
 ### [3.0.0] — MCP SDK v2 / 2026-07-28 Stateless Protocol
 

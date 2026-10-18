@@ -1,6 +1,6 @@
 {
   "name": "@needforspeed/nitan-mcp",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "Nitan MCP CLI server for uscardforum.com (fork of @nitansde/mcp with 3 upstream PRs merged + SDK v2)",
   "repository": {
     "type": "git",
