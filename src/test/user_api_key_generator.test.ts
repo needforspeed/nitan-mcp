@@ -5,7 +5,7 @@ import { mkdtempSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildAuthorizationUrl, completeUserApiKeyFromState, generateClientId, getBrowserOpenCommand, parseGenerateUserApiKeyArgs, prepareUserApiKeyGeneration, resolveAuthLaunchMode, savePendingUserApiKeyState } from '../user-api-key-generator.js';
+import { buildAuthorizationUrl, completeUserApiKeyFromState, decryptPayload, generateClientId, generateKeyPair, getBrowserOpenCommand, parseGenerateUserApiKeyArgs, prepareUserApiKeyGeneration, resolveAuthLaunchMode, savePendingUserApiKeyState } from '../user-api-key-generator.js';
 import { getDefaultProfilePath } from '../util/paths.js';
 
 test('generateClientId returns unique nitan-mcp UUID values', () => {
@@ -95,14 +95,51 @@ test('getDefaultProfilePath uses platform-appropriate directories', () => {
   );
 });
 
+test('decryptPayload with RSA_PKCS1_PADDING round-trips a UTF-8 payload', () => {
+  const { publicKey, privateKey } = generateKeyPair();
+
+  const payload = publicEncrypt(
+    { key: publicKey, padding: constants.RSA_PKCS1_PADDING },
+    Buffer.from(JSON.stringify({ key: '用户 API 密钥 🔑' }), 'utf8')
+  ).toString('base64');
+
+  assert.equal(decryptPayload(payload, privateKey), JSON.stringify({ key: '用户 API 密钥 🔑' }));
+});
+
+test('decryptPayload RSA_NO_PADDING fallback round-trips a UTF-8 payload', () => {
+  const { publicKey, privateKey } = generateKeyPair();
+
+  const payload = publicEncrypt(
+    { key: publicKey, padding: constants.RSA_PKCS1_PADDING },
+    Buffer.from(JSON.stringify({ key: 'user-key-manual-unpad-🔑' }), 'utf8')
+  ).toString('base64');
+
+  assert.equal(
+    decryptPayload(payload, privateKey, { forceNoPaddingFallback: true }),
+    JSON.stringify({ key: 'user-key-manual-unpad-🔑' })
+  );
+});
+
+test('decryptPayload fallback rejects payloads encrypted with OAEP padding', () => {
+  const { publicKey, privateKey } = generateKeyPair();
+
+  const payload = publicEncrypt(
+    { key: publicKey, padding: constants.RSA_PKCS1_OAEP_PADDING },
+    Buffer.from(JSON.stringify({ key: 'oaep-payload' }), 'utf8')
+  ).toString('base64');
+
+  assert.throws(
+    () => decryptPayload(payload, privateKey, { forceNoPaddingFallback: true }),
+    /unpadding failed/
+  );
+});
+
 test('resumable generation can complete from a saved state file in a later process', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'nitan-user-api-key-'));
   const stateFile = path.join(dir, 'pending.json');
-  const originalHome = process.env.HOME;
+  const profileFile = path.join(dir, 'profile.json');
 
   try {
-    process.env.HOME = dir;
-
     const prepared = prepareUserApiKeyGeneration({
       site: 'https://www.uscardforum.com',
     });
@@ -116,9 +153,8 @@ test('resumable generation can complete from a saved state file in a later proce
       Buffer.from(JSON.stringify({ key: 'user-key-from-payload' }), 'utf8')
     ).toString('base64');
 
-    await completeUserApiKeyFromState({ stateFile, payload });
+    await completeUserApiKeyFromState({ stateFile, payload, saveTo: profileFile });
 
-    const profileFile = getDefaultProfilePath('darwin', process.env, dir);
     const profile = JSON.parse(await readFile(profileFile, 'utf8'));
     assert.deepEqual(profile.auth_pairs, [{
       site: 'https://www.uscardforum.com',
@@ -126,7 +162,6 @@ test('resumable generation can complete from a saved state file in a later proce
       user_api_client_id: prepared.state.clientId,
     }]);
   } finally {
-    process.env.HOME = originalHome;
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -138,6 +173,12 @@ test('resumable generation defaults to the platform profile path when save-to is
 
   try {
     process.env.HOME = dir;
+    // Guard against engines whose os.homedir() ignores $HOME: if the resolved
+    // default ever escapes the sandbox, abort instead of writing the real profile.
+    const sandboxCheck = getDefaultProfilePath();
+    if (!sandboxCheck.startsWith(dir)) {
+      throw new Error(`test sandbox leak: default profile path resolves to ${sandboxCheck}`);
+    }
 
     const prepared = prepareUserApiKeyGeneration({
       site: 'https://www.uscardforum.com',

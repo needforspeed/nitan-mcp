@@ -4,13 +4,16 @@
 - **Purpose**: a dedicated MCP server/CLI for **https://www.uscardforum.com/** with Cloudflare-aware request handling.
 - **Package / bin**: `@needforspeed/nitan-mcp` → `nitan-mcp` (fork from `@nitansde/mcp`)
 - **Entry point**: `src/index.ts` → `dist/index.js`
-- **Runtime**: Node.js 26+, `@modelcontextprotocol/server` (v2 SDK), Zod v4 (Node 22 fails `RSA_PKCS1_PADDING` decrypt, verified on Node 26)
+- **Runtime**: Node.js 26+, `@modelcontextprotocol/server` (v2 SDK), Zod v4 (Node 22 fails `RSA_PKCS1_PADDING` decrypt; Bun 1.4+ also works via the unpadded-RSA fallback)
 - **Default site**: `https://www.uscardforum.com/`
 
 This repo started from Discourse MCP, but the current project is opinionated for uscardforum.com and should be documented and operated as such.
 
 ### Current runtime model
 - **Built-in tools only**. Remote `/ai/tools` discovery/execution has been removed.
+- **Runtime**: Node.js 26+ (primary) or Bun 1.4+ (supported via the `RSA_NO_PADDING` + manual
+  PKCS#1 v1.5 unpad fallback in `decryptPayload`; Bun mirrors Node 22/23 and blocks
+  `RSA_PKCS1_PADDING` for `privateDecrypt`). `doctor` prints the detected runtime.
 - **Transport**:
   - `stdio` (default)
   - `http` (optional)
@@ -151,8 +154,8 @@ Delete the current default profile file with:
 
 ### Operator quick start
 - Build: `pnpm build`
-- Test: `pnpm test`
-- Doctor: `node dist/index.js doctor`
+- Test: `pnpm test` (Node `node --test`); `bun test dist/test/` is also expected to pass 54/54
+- Doctor: `node dist/index.js doctor` (or `bun run dist/index.js doctor`)
 - Run stdio server: `node dist/index.js`
 - Run HTTP server: `node dist/index.js --transport http --port 3000`
 

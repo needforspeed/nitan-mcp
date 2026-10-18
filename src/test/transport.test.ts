@@ -49,6 +49,18 @@ async function stopServer(serverProcess: ReturnType<typeof spawn>) {
   await new Promise(resolve => setTimeout(resolve, 100));
 }
 
+// Connection-refused errors surface in different shapes across engines
+// (Node: error.cause.code; Bun: error.code = 'ConnectionRefused').
+function assertFetchFailure(error: any, label: string) {
+  const refused =
+    error?.name === 'AbortError' ||
+    error?.cause?.code === 'ECONNREFUSED' ||
+    error?.code === 'ECONNREFUSED' ||
+    error?.code === 'ConnectionRefused' ||
+    String(error?.cause?.message || error?.message || '').includes('refused');
+  assert.ok(refused, `${label}: got ${error?.name || typeof error}: ${error?.message || error}`);
+}
+
 function createTempDir(prefix: string): string {
   return mkdtempSync(path.join(tmpdir(), prefix));
 }
@@ -128,7 +140,7 @@ test('stdio transport is the default', async () => {
     await fetch('http://localhost:3000/health', { signal: AbortSignal.timeout(500) });
     assert.fail('Should not have HTTP server running in stdio mode');
   } catch (error: any) {
-    assert.ok(error.name === 'AbortError' || error.cause?.code === 'ECONNREFUSED');
+    assertFetchFailure(error, 'no HTTP server in stdio mode');
   } finally {
     await stopServer(serverProcess);
   }
@@ -151,7 +163,7 @@ test('HTTP transport gracefully handles shutdown', async () => {
       await fetch(`http://localhost:${port}/health`, { signal: AbortSignal.timeout(500) });
       assert.fail('Server should be shut down');
     } catch (error: any) {
-      assert.ok(error.name === 'AbortError' || error.cause?.code === 'ECONNREFUSED');
+      assertFetchFailure(error, 'server shut down');
     }
   } finally {
     serverProcess.kill('SIGKILL');

@@ -234,10 +234,10 @@ export function extractUserApiKeyFromPayload(state: PendingUserApiKeyState, payl
   };
 }
 
-export async function completeUserApiKeyFromState(options: { stateFile: string; payload: string }): Promise<void> {
+export async function completeUserApiKeyFromState(options: { stateFile: string; payload: string; saveTo?: string }): Promise<void> {
   const state = await loadPendingUserApiKeyState(options.stateFile);
   const result = extractUserApiKeyFromPayload(state, options.payload);
-  const saveTo = getDefaultProfilePath();
+  const saveTo = options.saveTo ?? getDefaultProfilePath();
 
   await saveToProfile(saveTo, result.site, result.key, result.clientId);
   console.error(`✓ Saved to profile: ${saveTo}\n`);
@@ -246,7 +246,36 @@ export async function completeUserApiKeyFromState(options: { stateFile: string; 
   await unlink(options.stateFile).catch(() => undefined);
 }
 
-export function decryptPayload(encryptedPayload: string, privateKey: string): string {
+function pkcs1v15UnpadToString(buffer: Buffer): string {
+  // RSA_NO_PADDING output may have the leading 0x00 byte stripped.
+  let b = buffer;
+  if (b.length > 0 && b[0] === 0x00) b = b.subarray(1);
+  if (b.length === 0 || b[0] !== 0x02) {
+    const first = b.length > 0 ? `0x${b[0].toString(16).padStart(2, "0")}` : "empty";
+    throw new Error(`PKCS#1 v1.5 unpadding failed: unexpected block start (${first})`);
+  }
+  let i = 1;
+  while (i < b.length && b[i] !== 0x00) i++;
+  if (i >= b.length) {
+    throw new Error("PKCS#1 v1.5 unpadding failed: no message separator found");
+  }
+  return b.subarray(i + 1).toString("utf8");
+}
+
+function decryptPayloadNoPadding(encryptedPayload: string, privateKey: string): string {
+  const buffer = Buffer.from(encryptedPayload, "base64");
+  const raw = privateDecrypt({ key: privateKey, padding: constants.RSA_NO_PADDING }, buffer);
+  return pkcs1v15UnpadToString(raw);
+}
+
+export function decryptPayload(
+  encryptedPayload: string,
+  privateKey: string,
+  options?: { forceNoPaddingFallback?: boolean }
+): string {
+  if (options?.forceNoPaddingFallback) {
+    return decryptPayloadNoPadding(encryptedPayload, privateKey);
+  }
   try {
     const buffer = Buffer.from(encryptedPayload, "base64");
     const decrypted = privateDecrypt(
@@ -259,12 +288,23 @@ export function decryptPayload(encryptedPayload: string, privateKey: string): st
     return decrypted.toString("utf8");
   } catch (error: any) {
     const msg = error?.message || String(error);
-    // Node 22+ disables RSA_PKCS1_PADDING for privateDecrypt (CVE-2023-46809)
-    // Node 26 still allows it, hence engines >=26. Give actionable hint.
-    if (msg.includes("RSA_PKCS1_PADDING")) {
-      throw new Error(
-        `Failed to decrypt payload: ${msg} (Node ${process.version} detected; use Node 26+ or run with --security-revert=CVE-2023-46809)`
-      );
+    // Node 22/23 disable RSA_PKCS1_PADDING for privateDecrypt (CVE-2023-46809);
+    // Bun mirrors that behavior. Node 24+/26 allow it again. Fall back to a raw
+    // RSA_NO_PADDING decrypt with manual PKCS#1 v1.5 unpadding, which works on
+    // every runtime.
+    if (msg.includes("RSA_PKCS1_PADDING") || process.versions.bun) {
+      try {
+        return decryptPayloadNoPadding(encryptedPayload, privateKey);
+      } catch (fallbackError: any) {
+        const fallbackMsg = fallbackError?.message || String(fallbackError);
+        if (!msg.includes("RSA_PKCS1_PADDING")) {
+          throw new Error(`Failed to decrypt payload: ${fallbackMsg}`);
+        }
+        const hint = process.versions.bun
+          ? `Bun ${process.versions.bun} blocks RSA_PKCS1_PADDING for privateDecrypt and the automatic RSA_NO_PADDING fallback failed: ${fallbackMsg}`
+          : `Node ${process.version} detected; use Node 26+ or run with --security-revert=CVE-2023-46809`;
+        throw new Error(`Failed to decrypt payload: ${msg} (${hint})`);
+      }
     }
     throw new Error(`Failed to decrypt payload: ${msg}`);
   }

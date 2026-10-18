@@ -14,7 +14,17 @@ const __dirname = path.dirname(__filename);
 
 function createSiteState() {
   const logger = new Logger('silent');
-  return new SiteState({ logger, timeoutMs: 5000, defaultAuth: { type: 'none' } });
+  return new SiteState({
+    logger,
+    timeoutMs: 5000,
+    defaultAuth: { type: 'none' },
+    // Point python bypass helpers at a nonexistent interpreter: the Python
+    // bypass would make REAL network calls and bypass any globalThis.fetch
+    // mocking in these tests. A failing spawn deterministically falls back
+    // to the (mocked) native fetch path, keeping these tests offline and
+    // engine-independent.
+    pythonPath: '/nonexistent/nitan-test-python',
+  });
 }
 
 function expectSearchOutput(text: string) {

@@ -421,7 +421,7 @@ async function runDoctor() {
 
   console.log("nitan-mcp doctor");
   console.log(`- platform: ${process.platform}`);
-  console.log(`- node: ${process.versions.node}`);
+  console.log(`- node: ${process.versions.node}${process.versions.bun ? ` (runtime: bun ${process.versions.bun})` : ""}`);
   console.log(`- default python_path: ${pythonPath}`);
   console.log(`- python deps (cloudscraper/curl_cffi): ${pyProbe.ok ? "OK" : "MISSING"}`);
   if (!pyProbe.ok) console.log(`  reason: ${pyProbe.reason}`);

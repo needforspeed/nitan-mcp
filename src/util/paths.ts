@@ -5,10 +5,17 @@ function pathForPlatform(platform: string) {
   return platform === "win32" ? win32 : posix;
 }
 
+// `os.homedir()` honors $HOME on Node but ignores it on Bun; resolving from env
+// first keeps sandboxed (and engine-agnostic) behavior consistent.
+function defaultHome(platform: string, env: NodeJS.ProcessEnv): string {
+  if (platform === "win32") return env.USERPROFILE || homedir();
+  return env.HOME || homedir();
+}
+
 export function getDefaultProfileDirectory(
   platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
-  home = homedir()
+  home = defaultHome(platform, env)
 ): string {
   const pathApi = pathForPlatform(platform);
   if (platform === "win32") {
@@ -27,7 +34,7 @@ export function getDefaultProfileDirectory(
 export function getDefaultProfilePath(
   platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
-  home = homedir()
+  home = defaultHome(platform, env)
 ): string {
   return pathForPlatform(platform).join(getDefaultProfileDirectory(platform, env, home), "profile.json");
 }

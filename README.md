@@ -9,9 +9,18 @@ This is a heavy modified version of [Discourse MCP](https://github.com/discourse
 ### Quick Installation
 
 **Prerequisites:**
-- **Node.js 26 or higher** (required — MCP SDK v2 requires Node 20+, but Node 22 fails to decrypt Discourse User API payloads `RSA_PKCS1_PADDING is no longer supported`; tested on Node 26)
+- **Node.js 26+**, or **Bun 1.4+** as an alternative runtime (both support stdio and HTTP transports; tests run on both — see "Bun support" below)
 - Python 3.7+ (required for Cloudflare bypass)
 - pip (used via local `.venv` Python)
+
+### Bun support
+
+Bun 1.4+ can run nitan-mcp directly (`bun run dist/index.js`, `bun test`), with one caveat
+handled automatically in code: Bun (like Node 22/23) blocks `RSA_PKCS1_PADDING` for
+`privateDecrypt` when decrypting Discourse User API key payloads. nitan-mcp falls back to a
+raw `RSA_NO_PADDING` decrypt plus manual PKCS#1 v1.5 unpadding, so the user API key flow
+works identically on both runtimes. Check `nitan-mcp doctor` output for the detected runtime
+(`node: … (runtime: bun …)`).
 
 ## Simplified setup by platform
 
