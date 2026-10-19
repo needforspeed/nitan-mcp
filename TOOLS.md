@@ -381,7 +381,7 @@ nitan-mcp --use-cloudscraper
 ```
 
 **Requirements:**
-- Python 3.7+
+- Python 3.10+
 - `pip3 install cloudscraper curl-cffi`
 
 Or install all requirements:

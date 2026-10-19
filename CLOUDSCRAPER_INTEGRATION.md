@@ -158,7 +158,7 @@ Expected output:
 See [CLOUDSCRAPER_GUIDE.md](CLOUDSCRAPER_GUIDE.md) for detailed troubleshooting steps.
 
 Common issues:
-1. **"Python not found"** - Install Python 3.7+
+1. **"Python not found"** - Install Python 3.10+
 2. **"No module named 'cloudscraper'"** - Run `pip3 install cloudscraper`
 3. **Still getting 403** - Cloudflare may have updated, try `pip3 install --upgrade cloudscraper`
 4. **Slow performance** - This is expected; cloudscraper adds overhead for automatic bypass

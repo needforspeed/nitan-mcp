@@ -42,7 +42,7 @@ function resolvePythonCommand() {
   console.warn('Warning: Python not found. Cloudflare bypass features will not work.');
   console.warn('');
   console.warn('To use cloudscraper/curl_cffi for bypassing Cloudflare, please install Python:');
-  console.warn('  • Download Python 3.7+ from: https://www.python.org/downloads/');
+  console.warn('  • Download Python 3.10+ from: https://www.python.org/downloads/');
   console.warn('  • On Windows: Make sure to check "Add Python to PATH" during installation');
   console.warn('  • On Mac: brew install python3');
   console.warn('  • On Linux: sudo apt-get install python3 python3-pip');
@@ -148,7 +148,7 @@ function ensureMacPlaywright() {
 
     if (!existsSync(playwrightCliJs)) {
       console.warn('Warning: Playwright CLI was not found after package installation.');
-      console.warn('You can run manually: npm install --no-save playwright && npx playwright install chromium');
+      console.warn('You can run manually: npm install --no-save --package-lock=false playwright && npx playwright install chromium');
       return;
     }
 
@@ -165,7 +165,7 @@ function ensureMacPlaywright() {
     if (details) {
       console.warn(details);
     }
-    console.warn('You can run manually: npm install --no-save playwright && npx playwright install chromium');
+    console.warn('You can run manually: npm install --no-save --package-lock=false playwright && npx playwright install chromium');
   }
 }
 

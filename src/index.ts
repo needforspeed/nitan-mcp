@@ -4,11 +4,11 @@
 const nodeVersion = process.versions.node;
 const majorVersion = parseInt(nodeVersion.split('.')[0], 10);
 
-if (majorVersion < 20) {
-  console.error(`Error: Node.js 20 or higher is required. You are using Node.js ${nodeVersion}.`);
+if (majorVersion < 26) {
+  console.error(`Error: Node.js 26 or higher is required. You are using Node.js ${nodeVersion}.`);
   console.error(`Please upgrade Node.js:`);
   console.error(`  - Download from https://nodejs.org/`);
-  console.error(`  - Or use nvm: nvm install 20 && nvm use 20`);
+  console.error(`  - Or use nvm: nvm install 26 && nvm use 26`);
   process.exit(1);
 }
 
@@ -300,18 +300,18 @@ except ImportError as e:
     python.on("error", (err) => {
       // Python not found
       logger.info(`⚠️  Warning: Python executable not found (tried: ${pythonPath})`);
-      logger.info(`⚠️  警告：找不到 Python 可执行文件（尝试了：${pythonPath}）`);
+      logger.info(`⚠️  警告：找不到 Python 可执行文件(尝试了：${pythonPath})`);
       logger.info("   Server will start, but Cloudflare bypass features will not work.");
       logger.info("   服务器将启动，但 Cloudflare 绕过功能将无法使用。");
       logger.info("");
       logger.info("   To enable Cloudflare bypass:");
       logger.info("   要启用 Cloudflare 绕过功能：");
-      logger.info("   1. Install Python 3.7+ from https://python.org");
-      logger.info("   1. 从 https://python.org 安装 Python 3.7+");
+      logger.info("   1. Install Python 3.10+ from https://python.org");
+      logger.info("   1. 从 https://python.org 安装 Python 3.10+");
       logger.info(`   2. Make sure '${pythonPath}' is in your PATH`);
       logger.info(`   2. 确保 '${pythonPath}' 在您的 PATH 环境变量中`);
       logger.info("   3. Create local venv: python3 -m venv .venv");
-      logger.info("   3. 创建本地 venv：python3 -m venv .venv");
+      logger.info("   3. 创建本地 venv: python3 -m venv .venv");
       logger.info("   4. Install required packages: .venv/bin/python -m pip install -r requirements.txt");
       logger.info("   4. 安装所需的包：.venv/bin/python -m pip install -r requirements.txt");
       logger.info("");
@@ -393,7 +393,7 @@ function platformInstallGuide(opts?: { includePlaywrightFix?: boolean }): string
       "pip install -r requirements.txt",
     ];
     if (opts?.includePlaywrightFix) {
-      lines.push("npm install --no-save playwright");
+      lines.push("npm install --no-save --package-lock=false playwright");
       lines.push("npx playwright install chromium");
     }
     return lines;

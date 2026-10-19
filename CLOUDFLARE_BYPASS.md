@@ -20,7 +20,7 @@ When both are enabled (default), the system will:
 
 **Required:**
 - **Node.js 18 or higher**
-- **Python 3.7+**
+- **Python 3.10+**
 - **pip3** (Python package manager)
 
 ### Installation
@@ -205,7 +205,7 @@ If both methods fail:
 
 1. **Check Python installation**:
    ```bash
-   python3 --version  # Should be 3.7+
+   python3 --version  # Should be 3.10+
    ```
 
 2. **Verify dependencies**:
